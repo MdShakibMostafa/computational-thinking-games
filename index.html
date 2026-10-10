@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Computational Thinking Multi-Game Platform</title>
+  <meta name="description"
+    content="An interactive game-based platform for learning computational thinking concepts like sorting, pathfinding, and strategic logic.">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+        "three/examples/jsm/controls/OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js",
+        "three/examples/jsm/renderers/webxr/WebGL1Renderer": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/renderers/webxr/WebGL1Renderer.js"
+      }
+    }
+  </script>
+  <style>
+    #game-arena-view,
+    .game-arena {
+      display: none;
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .arena-main {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .game-window {
+      width: 100%;
+      min-height: 550px;
+    }
+
+    /* GLOWING VIEW INSTRUCTIONS BUTTON */
+    .global-instruction-trigger-btn {
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(157, 78, 221, 0.15));
+      border: 1px solid var(--accent-cyan);
+      color: #fff;
+      padding: 0.5rem 1.2rem;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
+      font-family: var(--font-main);
+    }
+
+    .global-instruction-trigger-btn:hover {
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.3), rgba(157, 78, 221, 0.3));
+      transform: translateY(-2px);
+      box-shadow: 0 0 25px rgba(0, 242, 254, 0.45);
+    }
+
+    /* POPUP MODAL STYLES */
+    .global-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .global-modal-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .global-modal-content {
+      background: #121826;
+      border: 1px solid var(--accent-cyan);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 520px;
+      padding: 1.5rem;
+      box-shadow: 0 0 35px rgba(0, 242, 254, 0.35);
+      transform: scale(0.8);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      color: #fff;
+    }
+
+    .global-modal-overlay.open .global-modal-content {
+      transform: scale(1);
+    }
+
+    .global-modal-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .global-modal-close:hover {
+      color: var(--accent-pink);
+    }
+
+    .global-modal-title {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: var(--accent-cyan);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .global-modal-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+
+    .global-modal-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.75rem;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .global-modal-step-num {
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      color: #000;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">AIU</div>
+      <span>Computational Thinking Games</span>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item stat-score">
+        <span>⭐ Score:</span>
+        <span id="global-score">0</span>
+      </div>
+      <button class="sound-toggle" id="sound-toggle-btn" aria-label="Toggle Sound">🔊</button>
+      <button class="theme-toggle" id="theme-toggle-btn" aria-label="Toggle Light/Dark Mode">🌙</button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+
+    <!-- Dashboard Screen -->
+    <div id="dashboard-view" class="dashboard-content">
+      <div class="welcome-banner glass" style="margin-bottom: 2rem;">
+        <h1>Developing Computational Thinking Using Interactive Games</h1>
+        <p>Interactive game-based learning. Pick a challenge below to explore sorting, graph theory, state-space
+          constraints, and decision trees!</p>
+        <div
+          style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 1rem; border-top: 1px dashed var(--glass-border); padding-top: 0.75rem;">
+          <strong>Student:</strong> Md Shakib Mostafa | <strong>ID:</strong> CCC3026 Project 2 |
+          <strong>Supervisor:</strong> Dr.Qudrattullah Omerkhel
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <!-- Game 1: Bubble Sort -->
+        <div class="game-card glass" data-game="bubble-sort" style="--accent-color: var(--accent-cyan);">
+          <div class="game-card-header">
+            <div class="game-icon">📊</div>
+            <span class="game-badge">Algorithms</span>
+          </div>
+          <div class="game-card-body">
+            <h3>Bubble Sort</h3>
+            <p>Master sorting algorithms by comparing and swapping adjacent items. Learn the concept of passes and
+              sorting bounds.</p>
+          </div>
+          <div class="game-card-footer">
+            <span>Status</span>
+            <span class="game-card-status" id="bs-status">Ready</span>
+          </div>
+        </div>
+
+        <!-- Game 2: Dijkstra's Pathfinding -->
+        <div class="game-card glass" data-game="dijkstra" style="--accent-color: var(--accent-purple);">
+          <div class="game-card-header">
+            <div class="game-icon">🕸️</div>
+            <span class="game-badge">Graph Theory</span>
+          </div>
+          <div class="game-card-body">
+            <h3>Dijkstra's Pathfinding</h3>
+            <p>Expand search frontiers and calculate shortest paths step-by-step. Learn tentative distances and
+              relaxation.</p>
+          </div>
+          <div class="game-card-footer">
+            <span>Status</span>
+            <span class="game-card-status" id="dij-status">Level 1/3 Unlocked</span>
+          </div>
+        </div>
+
+        <!-- Game 3: Tic Tac Toe (Minimax) -->
+        <div class="game-card glass" data-game="tic-tac-toe" style="--accent-color: var(--accent-pink);">
+          <div class="game-card-header">
+            <div class="game-icon">❌</div>
+            <span class="game-badge">State Trees</span>
+          </div>
+          <div class="game-card-body">
+            <h3>Tic Tac Toe (Minimax)</h3>
+            <p>Analyze how computers look ahead using minimax search. Challenge a flawless recursive AI and view its
+              state evaluation tree.</p>
+          </div>
+          <div class="game-card-footer">
+            <span>Status</span>
+            <span class="game-card-status" id="ttt-status-badge">Ready</span>
+          </div>
+        </div>
+
+        <!-- Game 4: Three Men's Morris -->
+        <div class="game-card glass" data-game="three-mens-morris" style="--accent-color: var(--accent-green);">
+          <div class="game-card-header">
+            <div class="game-icon">🧩</div>
+            <span class="game-badge">Logic & Bounds</span>
+          </div>
+          <div class="game-card-body">
+            <h3>Three Men's Morris</h3>
+            <p>Understand state transitions and piece movement constraints. Place and slide three pieces to line them up
+              before the AI.</p>
+          </div>
+          <div class="game-card-footer">
+            <span>Status</span>
+            <span class="game-card-status" id="tmm-status-badge">Ready</span>
+          </div>
+        </div>
+
+        <!-- Game 5: Chess Game -->
+        <div class="game-card glass" data-game="chess" style="--accent-color: var(--accent-orange);">
+          <div class="game-card-header">
+            <div class="game-icon">👑</div>
+            <span class="game-badge">Planning</span>
+          </div>
+          <div class="game-card-body">
+            <h3>Chess Game</h3>
+            <p>Explore high-complexity state evaluations. Strategize and coordinate moves with standard pieces on an 8x8
+              board.</p>
+          </div>
+          <div class="game-card-footer">
+            <span>Status</span>
+            <span class="game-card-status" id="chess-status-badge">Ready</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Game Arena View -->
+    <div id="game-arena-view" class="game-arena">
+      <div class="arena-header glass">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <button class="back-btn" id="back-to-dashboard">← Dashboard</button>
+          <button id="global-instruction-trigger" class="global-instruction-trigger-btn">📖 View Instructions</button>
+        </div>
+        <div class="arena-title-wrapper" style="text-align: right;">
+          <h2 id="active-game-title">Game Title</h2>
+          <p id="active-game-category">Category</p>
+        </div>
+      </div>
+
+      <div class="game-window glass" id="active-game-container">
+        <!-- Active Game mounted here dynamically -->
+      </div>
+    </div>
+
+  </main>
+
+  <div id="three-container" class="three-container">
+    <!-- Three.js canvas injected here by JS -->
+    <canvas id="three-canvas"></canvas>
+  </div>
+
+  <!-- GLOBAL POPUP MODAL -->
+  <div id="global-instruction-modal" class="global-modal-overlay">
+    <div class="global-modal-content">
+      <button id="global-modal-close-btn" class="global-modal-close">&times;</button>
+
+      <div class="global-modal-title">
+        <span id="global-modal-game-name">💡 How to Play</span>
+      </div>
+
+      <div class="global-modal-steps" id="global-modal-steps-container">
+        <!-- Dynamic steps inserted per game -->
+      </div>
+
+      <div style="margin-top: 1.25rem; text-align: center;">
+        <button id="global-modal-gotit-btn" class="btn"
+          style="background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple)); color: white; padding: 0.5rem 1.5rem; font-weight: bold; border-radius: 8px;">Got
+          it!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2026 Albukhary International University - School of Computing and Informatics</p>
+    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Developed by Md Shakib Mostafa for
+      Course CCC3026 Project 2. Supervised by Dr. Qudrattullah Omerkhel.</p>
+  </footer>
+
+  <!-- Core Scripts -->
+  <script type="module" src="three-engine.js"></script>
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const threeContainer = document.getElementById('three-container');
+      if (!threeContainer) return;
+
+      let threeEngine = null;
+
+      try {
+        threeEngine = initThreeEngine(threeContainer, {
+          mode: 'background',
+          backgroundScene: true
+        });
+
+        if (!threeEngine) {
+          console.error('Failed to initialize Three.js engine');
+          return;
+        }
+
+        // Store reference globally for app.js theme sync
+        window.threeDashboardEngine = threeEngine;
+
+        // Set up theme change listener - connect to engine's setTheme method
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        if (themeBtn) {
+          const toggleTheme = () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+
+            // Update Three.js engine theme
+            if (threeEngine && typeof threeEngine.setTheme === 'function') {
+              threeEngine.setTheme(newTheme);
+            }
+
+            // Save theme preference
+            localStorage.setItem('app_theme', newTheme);
+
+            // Update button icon
+            themeBtn.innerHTML = newTheme === 'dark' ? '🌙' : '☀️';
+          };
+          themeBtn.addEventListener('click', toggleTheme);
+        }
+
+        // Handle resize - call engine's onResize method
+        const handleResize = () => {
+          if (threeEngine && typeof threeEngine.onResize === 'function') {
+            threeEngine.onResize();
+          }
+        };
+        window.addEventListener('resize', handleResize);
+
+        // Initialize with reduced motion preference
+        threeEngine.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // Play initial click sound
+        if (typeof sounds !== 'undefined' && sounds.playClick) {
+          sounds.playClick();
+        }
+
+      } catch (error) {
+        console.error('Error initializing Three.js dashboard background:', error);
+      }
+
+      // Cleanup function to destroy Three.js engine
+      window.cleanupThreeEngine = () => {
+        if (threeEngine && typeof threeEngine.destroy === 'function') {
+          threeEngine.destroy();
+          threeEngine = null;
+        }
+      };
+    });
+  </script>
+
+  <!-- Game Scripts -->
+  <script src="games/tic-tac-toe.js"></script>
+  <script src="games/bubble-sort.js"></script>
+  <script src="games/dijkstra.js"></script>
+  <script src="games/three-mens-morris.js"></script>
+  <script src="games/chess.js"></script>
+</body>
+
+</html>
